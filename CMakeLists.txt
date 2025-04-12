@@ -1,0 +1,18 @@
+# Cmake is likely a temporary solution - it's kinda just annoying
+# Note: this project only officially supports the clang compiler.
+# All other compilers are not guaranteed to work in any capacity.
+cmake_minimum_required(VERSION 3.28)
+
+project(Celestial
+    VERSION 0.0.0
+    DESCRIPTION "game"
+    HOMEPAGE_URL "idk"
+    LANGUAGES C
+)
+
+add_executable(Celestial
+    src/main.c
+)
+
+set_target_properties(Celestial PROPERTIES C_STANDARD 11)
+
