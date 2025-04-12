@@ -16,3 +16,8 @@ add_executable(Celestial
 
 set_target_properties(Celestial PROPERTIES C_STANDARD 11)
 
+add_subdirectory(SDL)
+
+target_link_libraries(Celestial SDL3::SDL3)
+
+target_include_directories(Celestial PUBLIC SDL/include)
