@@ -4,14 +4,20 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(Celestial
-    VERSION 0.0.0
+    VERSION "0.0.0.0"
     DESCRIPTION "game"
     HOMEPAGE_URL "idk"
     LANGUAGES C
 )
 
 add_executable(Celestial
+    src/arena.c
     src/main.c
+    src/render.c
+
+    src/arena.h
+    src/main.h
+    src/render.h
 )
 
 set_target_properties(Celestial PROPERTIES C_STANDARD 11)
