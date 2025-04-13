@@ -2,8 +2,9 @@
 // All subsystems are initialized here one way or another
 
 #include "SDL3/SDL_init.h"
-#define SDL_MAIN_USE_CALLBACKS 1
+
 #include <SDL3/SDL.h>
+#define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL_main.h>
 
 #include "main.h"
@@ -31,7 +32,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         return SDL_APP_FAILURE;
     }
 
-    return SDL_APP_CONTINUE;  /* carry on with the program! */
+    return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
@@ -39,6 +40,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     if (event->type == SDL_EVENT_QUIT) {
         // TODO: send events to subsystems instead
         celestial_staticState.render->closing = true;
+    }
+    if (event->type == SDL_EVENT_WINDOW_RESIZED) {
+        SDL_Log("Window resized to %i, %i", event->window.data1, event->window.data2);
     }
     return SDL_APP_CONTINUE;
 }

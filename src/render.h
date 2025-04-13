@@ -7,6 +7,7 @@ struct _CelestialRenderState {
     SDL_Window* window;
     SDL_Renderer* renderer;
     bool closing;
+    SDL_Texture* texture;
 };
 #endif
 

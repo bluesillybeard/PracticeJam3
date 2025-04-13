@@ -27,3 +27,13 @@ add_subdirectory(SDL)
 target_link_libraries(Celestial SDL3::SDL3)
 
 target_include_directories(Celestial PUBLIC SDL/include)
+
+if(EMSCRIPTEN)
+
+target_link_options(Celestial PRIVATE --embed-file ${CMAKE_CURRENT_SOURCE_DIR}/asset@asset/ )
+
+else()
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/asset/emscript.bmp ${CMAKE_CURRENT_BINARY_DIR}/asset/emscript.bmp COPYONLY)
+
+endif()
