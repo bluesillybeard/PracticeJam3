@@ -12,10 +12,12 @@ project(PracticeJam3
 
 add_executable(PracticeJam3
     src/arena.c
+    src/game.c
     src/main.c
     src/render.c
 
     src/arena.h
+    src/game.h
     src/main.h
     src/render.h
 )
@@ -35,5 +37,8 @@ target_link_options(PracticeJam3 PRIVATE --embed-file ${CMAKE_CURRENT_SOURCE_DIR
 else()
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/asset/emscript.bmp ${CMAKE_CURRENT_BINARY_DIR}/asset/emscript.bmp COPYONLY)
+
+# All the errors and warnings, we want them all!
+target_compile_options(PracticeJam3 PRIVATE "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function")
 
 endif()

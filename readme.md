@@ -22,4 +22,6 @@ Ok so just make everything camel case, unless it's a symbol which uses camel cas
 
 ## Build
 
-cmake + clang (for desktop) or cmake + emscripten (for web)
+cmake + clang 18 (for desktop) or cmake + emscripten 4.0.6 (for web)
+- The build of emscripten that comes with debian (3.something or whatever) is too old for SDL3 and will not work.
+- older version of clang probably work but I haven't tried them

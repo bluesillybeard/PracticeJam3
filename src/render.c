@@ -6,8 +6,11 @@
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_video.h>
 #include <SDL3/SDL.h>
-#define CELESTIAL_RENDER_PRIV
+#define RENDER_PRIV
 #include "render.h"
+
+#define GAME_PRIV
+#include "game.h"
 
 #include "main.h"
 
@@ -28,14 +31,14 @@ EM_JS(int, document_get_height, (), {
 
 #endif
 
-bool practiceJam3_render_init(CelestialState* state) {
-    state->render = arena_alloc(&state->permArena, sizeof(CelestialRenderState));
+bool practiceJam3_render_init(PracticeJam3State* state) {
+    state->render = arena_alloc(&state->permArena, sizeof(PracticeJam3RenderState));
 
-    CelestialRenderState* this = state->render;
+    PracticeJam3RenderState* this = state->render;
 
     int width = 640;
     int height = 480;
-    int windowFlags = SDL_WINDOW_RESIZABLE;
+    SDL_WindowFlags windowFlags = SDL_WINDOW_RESIZABLE;
 
     #if defined(__EMSCRIPTEN__)
     // On emscripten, we actually want to use "fullscreen"
@@ -47,7 +50,7 @@ bool practiceJam3_render_init(CelestialState* state) {
     height = document_get_height();
     #endif
 
-    if (!SDL_CreateWindowAndRenderer("Celestial", width, height, windowFlags, &this->window, &this->renderer)) {
+    if (!SDL_CreateWindowAndRenderer("PracticeJam3", width, height, windowFlags, &this->window, &this->renderer)) {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return false;
     }
@@ -64,8 +67,13 @@ bool practiceJam3_render_init(CelestialState* state) {
     return true;
 }
 
-bool practiceJam3_render_frame(CelestialState* state) {
-    CelestialRenderState* this = state->render;
+bool practiceJam3_render_frame(PracticeJam3State* state) {
+    PracticeJam3RenderState* this = state->render;
+
+    // Value used to interpolate the current state and the last state
+    // So if the framerate is higher than the step rate, it still looks smooth
+    // 0 -> last state, 1 -> current state
+    float interpolator = (float)(state->times.timeNsFrame - state->times.timeNsGame) / (float)nsPerStep;
 
     #if defined(__EMSCRIPTEN__)
     // Emscripten does not resize the canvas if the screen size changes
@@ -113,7 +121,19 @@ bool practiceJam3_render_frame(CelestialState* state) {
     SDL_FRect textureDst = {.x = 0, .y = 0, .w = 256, .h = 64};
     SDL_RenderTexture(this->renderer, this->texture, &textureSrc, &textureDst);
 
+    float sillyBoxRadius = 20;
+    float sillyBoxPos = state->gameState->boxPos * interpolator + state->gameState->lastBoxPos * (1 - interpolator);
+    SDL_FRect sillyBox = {.x = sillyBoxPos - sillyBoxRadius + 80, .y = 60, .w = sillyBoxRadius*2, .h = sillyBoxRadius*2};
+    SDL_SetRenderDrawColor(this->renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+    SDL_RenderFillRect(this->renderer, &sillyBox);
+
     SDL_RenderPresent(this->renderer);
 
+    return true;
+}
+
+
+bool practiceJam3_render_step(PracticeJam3State* state) {
+    (void)state;
     return true;
 }

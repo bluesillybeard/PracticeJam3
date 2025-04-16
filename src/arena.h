@@ -19,6 +19,8 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Modified by bluesillybeard to work within the build system of this project
+
 #ifndef ARENA_H_
 #define ARENA_H_
 
@@ -368,9 +370,9 @@ char *arena_sprintf(Arena *a, const char *format, ...)
     va_end(args);
 
     ARENA_ASSERT(n >= 0);
-    char *result = (char*)arena_alloc(a, n + 1);
+    char *result = (char*)arena_alloc(a, (size_t)(n + 1));
     va_start(args, format);
-    vsnprintf(result, n + 1, format, args);
+    vsnprintf(result, (size_t)(n + 1), format, args);
     va_end(args);
 
     return result;

@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include "main.h"
 
-#ifdef CELESTIAL_RENDER_PRIV
+#ifdef RENDER_PRIV
 struct _PracticeJam3RenderState {
     SDL_Window* window;
     SDL_Renderer* renderer;
@@ -14,3 +14,5 @@ struct _PracticeJam3RenderState {
 bool practiceJam3_render_init(PracticeJam3State* state);
 
 bool practiceJam3_render_frame(PracticeJam3State* state);
+
+bool practiceJam3_render_step(PracticeJam3State* state);
