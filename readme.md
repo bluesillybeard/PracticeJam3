@@ -1,8 +1,8 @@
-# Celestial
+# PracticeJam3
 
-Celestial is a game about space exploration and sandbox-style gameplay!
+Entry for https://itch.io/jam/practice-jam-2025-3
 
-This is the source code. Sorry, this is not open source. How did you get access to this anyway?
+It's written in C because why not
 
 ## Conventions
 
@@ -19,3 +19,7 @@ variables:
 - member: `camelCase`
 
 Ok so just make everything camel case, unless it's a symbol which uses camel case with underscore namespace separators
+
+## Build
+
+cmake + clang (for desktop) or cmake + emscripten (for web)

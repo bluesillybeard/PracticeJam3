@@ -1,11 +1,11 @@
 #pragma once
-// Celestial's "global" header file
-// I suspect nearly every Celestial source file will include this in one way or another
+// PracticeJam3's "global" header file
+// I suspect nearly every PracticeJam3 source file will include this in one way or another
 
 #include "arena.h"
 
 // Opaque structs for subsystems
-typedef struct _CelestialRenderState CelestialRenderState;
+typedef struct _PracticeJam3RenderState PracticeJam3RenderState;
 
 typedef struct {
     // Global components
@@ -16,7 +16,7 @@ typedef struct {
     /// @brief An arena that is cleared at the end of each game tick
     Arena tickArena;
     // Subsystems
-    CelestialRenderState* render;
-} CelestialState;
+    PracticeJam3RenderState* render;
+} PracticeJam3State;
 
-extern CelestialState celestial_staticState;
+extern PracticeJam3State practiceJam3_staticState;

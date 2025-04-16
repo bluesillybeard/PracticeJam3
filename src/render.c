@@ -28,7 +28,7 @@ EM_JS(int, document_get_height, (), {
 
 #endif
 
-bool celestial_render_init(CelestialState* state) {
+bool practiceJam3_render_init(CelestialState* state) {
     state->render = arena_alloc(&state->permArena, sizeof(CelestialRenderState));
 
     CelestialRenderState* this = state->render;
@@ -64,7 +64,7 @@ bool celestial_render_init(CelestialState* state) {
     return true;
 }
 
-bool celestial_render_frame(CelestialState* state) {
+bool practiceJam3_render_frame(CelestialState* state) {
     CelestialRenderState* this = state->render;
 
     #if defined(__EMSCRIPTEN__)

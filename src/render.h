@@ -3,7 +3,7 @@
 #include "main.h"
 
 #ifdef CELESTIAL_RENDER_PRIV
-struct _CelestialRenderState {
+struct _PracticeJam3RenderState {
     SDL_Window* window;
     SDL_Renderer* renderer;
     bool closing;
@@ -11,6 +11,6 @@ struct _CelestialRenderState {
 };
 #endif
 
-bool celestial_render_init(CelestialState* state);
+bool practiceJam3_render_init(PracticeJam3State* state);
 
-bool celestial_render_frame(CelestialState* state);
+bool practiceJam3_render_frame(PracticeJam3State* state);

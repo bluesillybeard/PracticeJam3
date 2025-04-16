@@ -3,14 +3,14 @@
 # All other compilers are not guaranteed to work in any capacity.
 cmake_minimum_required(VERSION 3.28)
 
-project(Celestial
+project(PracticeJam3
     VERSION "0.0.0.0"
     DESCRIPTION "game"
     HOMEPAGE_URL "idk"
     LANGUAGES C
 )
 
-add_executable(Celestial
+add_executable(PracticeJam3
     src/arena.c
     src/main.c
     src/render.c
@@ -20,17 +20,17 @@ add_executable(Celestial
     src/render.h
 )
 
-set_target_properties(Celestial PROPERTIES C_STANDARD 11)
+set_target_properties(PracticeJam3 PROPERTIES C_STANDARD 11)
 
 add_subdirectory(SDL)
 
-target_link_libraries(Celestial SDL3::SDL3)
+target_link_libraries(PracticeJam3 SDL3::SDL3)
 
-target_include_directories(Celestial PUBLIC SDL/include)
+target_include_directories(PracticeJam3 PUBLIC SDL/include)
 
 if(EMSCRIPTEN)
 
-target_link_options(Celestial PRIVATE --embed-file ${CMAKE_CURRENT_SOURCE_DIR}/asset@asset/ )
+target_link_options(PracticeJam3 PRIVATE --embed-file ${CMAKE_CURRENT_SOURCE_DIR}/asset@asset/ )
 
 else()
 

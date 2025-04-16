@@ -13,22 +13,22 @@
 
 // Implementations of symbols in main.h
 
-CelestialState celestial_staticState;
+PracticeJam3State practiceJam3_staticState;
 
 // Implementations of SDL main functions
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
-    celestial_staticState = (CelestialState){ 0 };
+    practiceJam3_staticState = (PracticeJam3State){ 0 };
 
     // TODO: autogen version macro
-    SDL_SetAppMetadata("Celestial game", "alpha-0.0.0", "com.bluesillybeard.celestialgame");
+    SDL_SetAppMetadata("PracticeJam3 game", "alpha-0.0.0", "com.bluesillybeard.practiceJam3game");
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    if(!celestial_render_init(&celestial_staticState)) {
+    if(!practiceJam3_render_init(&practiceJam3_staticState)) {
         return SDL_APP_FAILURE;
     }
 
@@ -39,7 +39,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
     if (event->type == SDL_EVENT_QUIT) {
         // TODO: send events to subsystems instead
-        celestial_staticState.render->closing = true;
+        practiceJam3_staticState.render->closing = true;
     }
     if (event->type == SDL_EVENT_WINDOW_RESIZED) {
         SDL_Log("Window resized to %i, %i", event->window.data1, event->window.data2);
@@ -50,11 +50,11 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     // TODO: ask subsystems if they want to close the app
-    if(celestial_staticState.render->closing) {
+    if(practiceJam3_staticState.render->closing) {
         return SDL_APP_SUCCESS;
     }
 
-    if(!celestial_render_frame(&celestial_staticState)) {
+    if(!practiceJam3_render_frame(&practiceJam3_staticState)) {
         return SDL_APP_FAILURE;
     }
 

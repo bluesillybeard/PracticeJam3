@@ -2,4 +2,7 @@
     // To stop c_cpp from interracting with clangd
     // I really suggest using clangd instead of the official c++ extension, it provides a much better experience.
     "C_Cpp.intelliSenseEngine": "disabled",
+    "cSpell.words": [
+        "emscripten"
+    ],
 }
