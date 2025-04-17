@@ -6,6 +6,7 @@
 
 bool practiceJam3_game_init(PracticeJam3State* state) {
     state->gameState = arena_alloc(&state->permArena, sizeof(PracticeJam3GameState));
+    *state->gameState = (PracticeJam3GameState){0};
     return true;
 }
 

@@ -1,8 +1,10 @@
 // This is the "root file" where everything happens
 // All subsystems are initialized here one way or another
 
+#include "SDL3/SDL_filesystem.h"
 #include "SDL3/SDL_init.h"
 #include "SDL3/SDL_log.h"
+#include "SDL3/SDL_stdinc.h"
 #include "SDL3/SDL_timer.h"
 #include "game.h"
 
@@ -34,6 +36,36 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
+
+    // Due to _reasons_, the binary is in a folder adjacent to the assets folder
+    // Normally I would have the binary next to the assets folder,
+    // But cmake is being annoying and I don't want to deal with it to be honest
+    // So for anything other than emscripten, create a virtual cwd that points to the folder right outside the one our exe is in
+    // TODO: it's probably best to do a minecraft and make all of the different folders configurable
+    // Not for this game jam though, for now it's good enough
+    #if !defined(__EMSCRIPTEN__)
+    char* realCwd = SDL_GetCurrentDirectory();
+    size_t cwdLenToCheck = strlen(realCwd);
+    if(realCwd[cwdLenToCheck-1] == '/' || realCwd[cwdLenToCheck-1] == '\\') {
+        cwdLenToCheck--;
+    }
+    size_t indexOfLastFolderSeparator = 0;
+    for(size_t i=0; i<cwdLenToCheck; ++i) {
+        if(realCwd[i] == '/') {
+            indexOfLastFolderSeparator = i;
+        } else if(realCwd[i] == '\\') {
+            // Windows be like:
+            indexOfLastFolderSeparator = i;
+        }
+    }
+    // I could really use a proper string management library (no, snprintf and scanf doesn't count)
+    char* virtualCwdAllocation = arena_alloc(&_state.permArena, indexOfLastFolderSeparator+1);
+    SDL_memcpy(virtualCwdAllocation, realCwd, indexOfLastFolderSeparator);
+    virtualCwdAllocation[indexOfLastFolderSeparator] = 0;
+    _state.virtualCwd = virtualCwdAllocation;
+    #else
+    _state.virtualCwd = "";
+    #endif
 
     if(!practiceJam3_render_init(&_state)) {
         return SDL_APP_FAILURE;

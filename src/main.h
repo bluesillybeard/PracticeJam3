@@ -42,6 +42,8 @@ typedef struct {
     // Subsystems
     PracticeJam3RenderState* render;
     PracticeJam3GameState* gameState;
+    // Some stupid things that have to exist for stupid reasons
+    char* virtualCwd;
 } PracticeJam3State;
 
 extern PracticeJam3State practiceJam3_staticState;
