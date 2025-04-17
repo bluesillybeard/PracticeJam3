@@ -32,6 +32,10 @@ target_link_libraries(PracticeJam3 SDL3::SDL3)
 
 target_include_directories(PracticeJam3 PUBLIC SDL/include)
 
+target_link_libraries(PracticeJam3 cglm)
+
+add_subdirectory(cglm)
+
 if(EMSCRIPTEN)
 
 target_link_options(PracticeJam3 PRIVATE --embed-file ${CMAKE_CURRENT_SOURCE_DIR}/asset@asset/ )

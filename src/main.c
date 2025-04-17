@@ -1,21 +1,20 @@
 // This is the "root file" where everything happens
 // All subsystems are initialized here one way or another
 
-#include "SDL3/SDL_filesystem.h"
-#include "SDL3/SDL_init.h"
-#include "SDL3/SDL_log.h"
-#include "SDL3/SDL_stdinc.h"
-#include "SDL3/SDL_timer.h"
-#include "game.h"
-
+#include <SDL3/SDL_filesystem.h>
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_log.h>
+#include <SDL3/SDL_stdinc.h>
+#include <SDL3/SDL_timer.h>
 #include <SDL3/SDL.h>
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL_main.h>
 
 #include "main.h"
+
 #define RENDER_PRIV
 #include "render.h"
-
+#include "game.h"
 // Implementations of symbols in main.h
 
 PracticeJam3State practiceJam3_staticState;
@@ -29,7 +28,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     (void)argv;
     _state = (PracticeJam3State){ 0 };
 
-    // TODO: autogen version macro
+    // TODO: auto generate version macro
     SDL_SetAppMetadata("PracticeJam3 game", "alpha-0.0.0", "com.bluesillybeard.practiceJam3game");
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -85,9 +84,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         // TODO: send events to subsystems instead
         _state.render->closing = true;
     }
-    if (event->type == SDL_EVENT_WINDOW_RESIZED) {
-        SDL_Log("Window resized to %i, %i", event->window.data1, event->window.data2);
-    }
+    practiceJam3_game_event(&_state, event);
     return SDL_APP_CONTINUE;
 }
 

@@ -7,7 +7,15 @@ struct _PracticeJam3RenderState {
     SDL_Window* window;
     SDL_Renderer* renderer;
     bool closing;
-    SDL_Texture* texture;
+    SDL_Texture* characterTexture;
+    // camera center in world space
+    float cameraCenterX;
+    float cameraCenterY;
+    // Camera radius in world space
+    float cameraRadius;
+    float cameraCenterXLast;
+    float cameraCenterYLast;
+    float cameraRadiusLast;
 };
 #endif
 

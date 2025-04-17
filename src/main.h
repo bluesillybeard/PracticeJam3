@@ -5,7 +5,7 @@
 #include "arena.h"
 
 // Global compile-time settings
-static const int64_t nsPerStep = (1000 * 1000 * 1000) / 50; // 50 hz as a delay in nano seconds
+static const int64_t nsPerStep = (1000 * 1000 * 1000) / 100; // 100 hz as a delay in nano seconds
 
 // Opaque structs for subsystems
 typedef struct _PracticeJam3RenderState PracticeJam3RenderState;
