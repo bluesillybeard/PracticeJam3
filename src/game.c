@@ -1,5 +1,7 @@
 #include "SDL3/SDL_events.h"
+#include "cglm/util.h"
 #include "main.h"
+#include "render.h"
 #include <unistd.h>
 #define GAME_PRIV
 #include "game.h"
@@ -7,12 +9,24 @@
 
 bool practiceJam3_game_init(PracticeJam3State* state) {
     state->gameState = arena_alloc(&state->permArena, sizeof(PracticeJam3GameState));
-    *state->gameState = (PracticeJam3GameState){0};
+    PracticeJam3GameState* this = state->gameState;
+    *this = (PracticeJam3GameState){0};
+
+
+    this->characterTexture = practiceJam3_render_loadTexture(state, "asset/character0.png");
+    SDL_SetTextureScaleMode(this->characterTexture, SDL_SCALEMODE_LINEAR);
+    SDL_SetTextureBlendMode(this->characterTexture,SDL_BLENDMODE_BLEND);
     return true;
 }
 
 bool practiceJam3_game_frame(PracticeJam3State* state) {
-    (void)state;
+    PracticeJam3GameState* this = state->gameState;
+    float interpolator = practiceJam3_render_getInterpolator(state);
+    float playerX = glm_lerpc(this->playerXLast, this->playerX, interpolator);
+    float playerY = glm_lerpc(this->playerYLast, this->playerY, interpolator);
+    if(!practiceJam3_render_sprite(state, playerX, playerY, 1, 1, this->characterTexture, 1, 1, 1, 1, 0)) {
+        return false;
+    }
     return true;
 }
 

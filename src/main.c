@@ -1,6 +1,7 @@
 // This is the "root file" where everything happens
 // All subsystems are initialized here one way or another
 
+#include "arena.h"
 #include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_log.h>
@@ -119,6 +120,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         if(!practiceJam3_render_step(&_state)) {
             return SDL_APP_FAILURE;
         }
+
+        arena_reset(&_state.tickArena);
     }
 
     if(!practiceJam3_game_frame(&_state)) {
@@ -128,6 +131,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     if(!practiceJam3_render_frame(&_state)) {
         return SDL_APP_FAILURE;
     }
+
+    arena_reset(&_state.frameArena);
 
     return SDL_APP_CONTINUE;
 }

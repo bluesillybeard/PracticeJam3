@@ -9,6 +9,7 @@
 #include <SDL3/SDL_blendmode.h>
 #include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_stdinc.h>
+#include <time.h>
 
 #include "arena.h"
 #include "cglm/call/affine.h"
@@ -44,38 +45,6 @@ EM_JS(int, document_get_height, (), {
 // other extra functions
 static inline float rqlerp(float a, float b, float x) {
     return a * x + b * (1-x);
-}
-
-static SDL_Texture* loadTexture(PracticeJam3RenderState* this, char* assetPath) {
-    int imageWidth;
-    int imageHeight;
-    int fileChannels;
-
-    size_t filePathSizeRequired = strlen(practiceJam3_staticState.virtualCwd) + 1 + strlen(assetPath) + 1;
-    // allocate temporarily
-    char* file = arena_alloc(&practiceJam3_staticState.tickArena, filePathSizeRequired);
-    SDL_snprintf(file, filePathSizeRequired, "%s/%s", practiceJam3_staticState.virtualCwd, assetPath);
-    stbi_uc* imageResult = stbi_load(file, &imageWidth, &imageHeight, &fileChannels, 4);
-
-    if(!imageResult) {
-        SDL_Log("Could not load character0.png: %s", stbi_failure_reason());
-        SDL_Log("cwd: %s", SDL_GetCurrentDirectory());
-        return false;
-    }
-
-    // SDL3 is big dumb and treats 'rgba' as big endian RGBA, but what we have is the actual bytes of R, G, B, and A in order.
-    // Something about accounting for endianness or whatever - for now, just swap every single one of them around in-place.
-    // TODO: is this correct on actual big-endian systems? x86 is little endian, but big endian systems do exist I think.
-    uint32_t* imageResultInts = (uint32_t*)imageResult;
-    for(size_t i=0; i<(unsigned int)imageWidth*(unsigned int)imageHeight; ++i) {
-        uint32_t vo = imageResultInts[i];
-        imageResultInts[i] = ((vo & 0xFF000000) >> 24) | ((vo & 0x00FF0000) >> 8) | ((vo & 0x0000FF00) << 8) | ((vo & 0x000000FF) << 24);
-    }
-
-    // TODO: probably free the surface and the pixel data
-    SDL_Surface* imageSurface = SDL_CreateSurfaceFrom(imageWidth, imageHeight, SDL_PIXELFORMAT_RGBA8888, imageResult, imageWidth*4);
-
-    return SDL_CreateTextureFromSurface(this->renderer, imageSurface);
 }
 
 static void getCameraTransform(PracticeJam3RenderState* this, mat4 dest, float interpolator) {
@@ -116,11 +85,78 @@ static void drawTextureQuad(PracticeJam3RenderState* this, mat4 transform, SDL_V
     SDL_RenderGeometry(this->renderer, texture, vertices, 4, indices, 6);
 }
 
+static RenderLayer* getOrMakeRenderLayer(PracticeJam3RenderState* this, int wantedDepth) {
+    size_t layerIndex = 0;
+    if(this->layers) {
+        // binary search for this layer
+        size_t boundLow = 0;
+        size_t boundHigh = this->numRenderLayers-1;
+        while(true) {
+            size_t const index = (boundHigh + boundLow)/2;
+            int const layerDepth = this->layers[index].depth;
+            if(wantedDepth == layerDepth) {
+                return &this->layers[index];
+            } else {
+                if(wantedDepth > layerDepth) {
+                    // Too low but we've hit the end of the search
+                    if(boundLow == boundHigh) {
+                        layerIndex = boundLow+1;
+                        break;
+                    }
+                    boundLow = index+1;
+                } else if(wantedDepth < layerDepth) {
+                    // Too high but we've hit the end of the search
+                    if(boundLow == boundHigh) {
+                        layerIndex = boundLow;
+                        break;
+                    }
+                    boundHigh = index;
+                }
+            }
+        }
+    }
+    // No layer!
+    RenderLayer newLayer = {
+        .capacity = 0,
+        .cmds = NULL,
+        .count = 0,
+        .depth = wantedDepth,
+    };
+    // TODO: is it worth using realloc? Probably not.
+    // Creating new layers should be seriously quite rare, so the slowness is probably fine
+    RenderLayer* newLayers = SDL_malloc((this->numRenderLayers+1) * sizeof(RenderLayer));
+    newLayers[layerIndex] = newLayer;
+    if(this->layers) {
+        SDL_memcpy(newLayers, this->layers, (layerIndex) * sizeof(RenderLayer));
+        SDL_memcpy(newLayers+layerIndex+1, this->layers+layerIndex, (this->numRenderLayers - layerIndex) * sizeof(RenderLayer));
+        SDL_free(this->layers);
+    }
+    this->layers = newLayers;
+    this->numRenderLayers++;
+    return &this->layers[layerIndex];
+}
+
+// Makes a copy of com
+void renderLayer_add(RenderLayer* layer, RenderCommand const* com) {
+    if(!layer->cmds) {
+        layer->capacity = 8;
+        layer->count = 0;
+        layer->cmds = SDL_malloc(8 * sizeof(RenderCommand));
+    }
+    if(layer->capacity == layer->count) {
+        size_t newCapcity = layer->capacity*2;
+        layer->cmds = SDL_realloc(layer->cmds, newCapcity * sizeof(RenderCommand));
+        layer->capacity = newCapcity;
+    }
+    layer->cmds[layer->count] = *com;
+    layer->count++;
+}
+
 bool practiceJam3_render_init(PracticeJam3State* state) {
     state->render = arena_alloc(&state->permArena, sizeof(PracticeJam3RenderState));
     PracticeJam3RenderState* this = state->render;
     *this = (PracticeJam3RenderState){ 0 };
-    this->cameraRadius = 8;
+    this->cameraRadius = 12;
 
     int width = 640;
     int height = 480;
@@ -140,21 +176,13 @@ bool practiceJam3_render_init(PracticeJam3State* state) {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return false;
     }
-
-    this->characterTexture = loadTexture(this, "asset/character0.png");
-    SDL_SetTextureScaleMode(this->characterTexture, SDL_SCALEMODE_LINEAR);
-    SDL_SetTextureBlendMode(this->characterTexture,SDL_BLENDMODE_BLEND);
     return true;
 }
 
 bool practiceJam3_render_frame(PracticeJam3State* state) {
     PracticeJam3RenderState* this = state->render;
 
-    // Value used to interpolate the current state and the last state
-    // So if the framerate is higher than the step rate, it still looks smooth
-    // 0 -> last state, 1 -> current state
-    // This effectively a measurement of how far into the step we are
-    float interpolator = (float)(state->times.timeNsFrame - state->times.timeNsStep + nsPerStep) / (float)nsPerStep;
+    float interpolator = practiceJam3_render_getInterpolator(state);
     // For when unclamped interpolation might look weird
     float interpolatorClamp = SDL_clamp(interpolator, 0, 1);
 
@@ -182,35 +210,89 @@ bool practiceJam3_render_frame(PracticeJam3State* state) {
     mat4 worldToCameraSpace;
     getCameraTransform(this, worldToCameraSpace, interpolatorClamp);
 
-    SDL_Vertex sillyBoxVertices[4] = {
-        (SDL_Vertex){.position={0, 0}, .color={1, 1, 1, 1}, .tex_coord={0, 0}},
-        (SDL_Vertex){.position={1, 0}, .color={1, 1, 1, 1}, .tex_coord={1, 0}},
-        (SDL_Vertex){.position={0, 1}, .color={1, 1, 1, 1}, .tex_coord={0, 1}},
-        (SDL_Vertex){.position={1, 1}, .color={1, 1, 1, 1}, .tex_coord={1, 1}},
-    };
-    drawTextureQuad(this, worldToCameraSpace, sillyBoxVertices, NULL);
+    for(size_t layer = 0; layer < this->numRenderLayers; layer++) {
+        RenderLayer* layerObj = &this->layers[layer];
+        for(size_t command=0; command<layerObj->count; command++) {
+            RenderCommand* co = &layerObj->cmds[command];
+            SDL_Vertex vertices[4] = {
+                (SDL_Vertex){.position = {co->x      , co->y      }, .color = {co->tintRed, co->tintGreen, co->tintBlue, co->tintAlpha}, .tex_coord = {0, 0}},
+                (SDL_Vertex){.position = {co->x+co->w, co->y      }, .color = {co->tintRed, co->tintGreen, co->tintBlue, co->tintAlpha}, .tex_coord = {1, 0}},
+                (SDL_Vertex){.position = {co->x      , co->y+co->h}, .color = {co->tintRed, co->tintGreen, co->tintBlue, co->tintAlpha}, .tex_coord = {0, 1}},
+                (SDL_Vertex){.position = {co->x+co->w, co->y+co->h}, .color = {co->tintRed, co->tintGreen, co->tintBlue, co->tintAlpha}, .tex_coord = {1, 1}},
+            };
+            drawTextureQuad(this, worldToCameraSpace, vertices, co->texture);
+        }
+        // reset the layer
+        SDL_memset(layerObj->cmds, 0, layerObj->count * sizeof(RenderCommand));
+        layerObj->count = 0;
+    }
 
-    float playerX = rqlerp(state->gameState->playerX, state->gameState->playerXLast, interpolatorClamp);
-    float playerY = rqlerp(state->gameState->playerY, state->gameState->playerYLast, interpolatorClamp);
-    SDL_Vertex playerVertices[4] = {
-        (SDL_Vertex){.position={playerX, playerY}, .color={1, 1, 1, 1}, .tex_coord={0, 0}},
-        (SDL_Vertex){.position={playerX+1, playerY}, .color={1, 1, 1, 1}, .tex_coord={1, 0}},
-        (SDL_Vertex){.position={playerX, playerY+1}, .color={1, 1, 1, 1}, .tex_coord={0, 1}},
-        (SDL_Vertex){.position={playerX+1, playerY+1}, .color={1, 1, 1, 1}, .tex_coord={1, 1}},
-    };
-    drawTextureQuad(this, worldToCameraSpace, playerVertices, this->characterTexture);
     SDL_RenderPresent(this->renderer);
 
     return true;
 }
-
 
 bool practiceJam3_render_step(PracticeJam3State* state) {
     PracticeJam3RenderState* this = state->render;
     this->cameraCenterXLast = this->cameraCenterX;
     this->cameraCenterYLast = this->cameraCenterY;
     this->cameraRadiusLast = this->cameraRadius;
-    this->cameraCenterX = state->gameState->playerX;
-    this->cameraCenterY = state->gameState->playerY;
+    this->cameraCenterX = state->gameState->playerX + 0.5f;
+    this->cameraCenterY = state->gameState->playerY + 0.5f;
     return true;
+}
+
+SDL_Texture* practiceJam3_render_loadTexture(PracticeJam3State* state, char* assetPath) {
+    PracticeJam3RenderState* this = state->render;
+    int imageWidth;
+    int imageHeight;
+    int fileChannels;
+
+    size_t filePathSizeRequired = strlen(practiceJam3_staticState.virtualCwd) + 1 + strlen(assetPath) + 1;
+    // allocate temporarily
+    char* file = arena_alloc(&practiceJam3_staticState.tickArena, filePathSizeRequired);
+    SDL_snprintf(file, filePathSizeRequired, "%s/%s", practiceJam3_staticState.virtualCwd, assetPath);
+    stbi_uc* imageResult = stbi_load(file, &imageWidth, &imageHeight, &fileChannels, 4);
+
+    if(!imageResult) {
+        SDL_Log("Could not load character0.png: %s", stbi_failure_reason());
+        SDL_Log("cwd: %s", SDL_GetCurrentDirectory());
+        return false;
+    }
+
+    // SDL3 is big dumb and treats 'rgba' as big endian RGBA, but what we have is the actual bytes of R, G, B, and A in order.
+    // Something about accounting for endianness or whatever - for now, just swap every single one of them around in-place.
+    // TODO: is this correct on actual big-endian systems? x86 is little endian, but big endian systems do exist I think.
+    uint32_t* imageResultInts = (uint32_t*)imageResult;
+    for(size_t i=0; i<(unsigned int)imageWidth*(unsigned int)imageHeight; ++i) {
+        uint32_t vo = imageResultInts[i];
+        imageResultInts[i] = ((vo & 0xFF000000) >> 24) | ((vo & 0x00FF0000) >> 8) | ((vo & 0x0000FF00) << 8) | ((vo & 0x000000FF) << 24);
+    }
+
+    // TODO: probably free the surface and the pixel data
+    SDL_Surface* imageSurface = SDL_CreateSurfaceFrom(imageWidth, imageHeight, SDL_PIXELFORMAT_RGBA8888, imageResult, imageWidth*4);
+
+    return SDL_CreateTextureFromSurface(this->renderer, imageSurface);
+}
+
+bool practiceJam3_render_sprite(PracticeJam3State* state, float x, float y, float w, float h, SDL_Texture* texture, float tintRed, float tintGreen, float tintBlue, float tintAlpha, int layer) {
+    PracticeJam3RenderState* this = state->render;
+    RenderCommand com = {
+        .x = x,
+        .y = y,
+        .w = w,
+        .h = h,
+        .texture = texture,
+        .tintRed = tintRed,
+        .tintGreen = tintGreen,
+        .tintBlue = tintBlue,
+        .tintAlpha = tintAlpha
+    };
+    RenderLayer* renderL = getOrMakeRenderLayer(this, layer);
+    renderLayer_add(renderL, &com);
+    return true;
+}
+
+float practiceJam3_render_getInterpolator(PracticeJam3State* state) {
+    return (float)(state->times.timeNsFrame - state->times.timeNsStep + nsPerStep) / (float)nsPerStep;
 }

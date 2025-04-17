@@ -6,6 +6,7 @@
 
 #ifdef GAME_PRIV
 
+#include "SDL3/SDL_render.h"
 struct _PracticeJam3GameState {
     float playerX;
     float playerY;
@@ -15,6 +16,7 @@ struct _PracticeJam3GameState {
     bool downControlState;
     bool leftControlState;
     bool rightControlState;
+    SDL_Texture* characterTexture;
 };
 #endif
 
