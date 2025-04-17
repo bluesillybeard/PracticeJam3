@@ -12,7 +12,6 @@ bool practiceJam3_game_init(PracticeJam3State* state) {
     PracticeJam3GameState* this = state->gameState;
     *this = (PracticeJam3GameState){0};
 
-
     this->characterTexture = practiceJam3_render_loadTexture(state, "asset/character0.png");
     SDL_SetTextureScaleMode(this->characterTexture, SDL_SCALEMODE_LINEAR);
     SDL_SetTextureBlendMode(this->characterTexture,SDL_BLENDMODE_BLEND);
@@ -35,7 +34,6 @@ bool practiceJam3_game_event(PracticeJam3State* state, SDL_Event const* ev) {
     // Gotta love fall-through by default
     switch (ev->type) {
         case SDL_EVENT_KEY_DOWN: {
-            // TODO: probably make this more robust
             switch (ev->key.key) {
                 case SDLK_W: this->upControlState = true; break;
                 case SDLK_A: this->leftControlState = true; break;

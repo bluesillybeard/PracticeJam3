@@ -41,7 +41,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     // Normally I would have the binary next to the assets folder,
     // But cmake is being annoying and I don't want to deal with it to be honest
     // So for anything other than emscripten, create a virtual cwd that points to the folder right outside the one our exe is in
-    // TODO: it's probably best to do a minecraft and make all of the different folders configurable
+    // TODO: it's probably best to do a minecraft and make all of the different folders configurable like this anyway
     // Not for this game jam though, for now it's good enough
     #if !defined(__EMSCRIPTEN__)
     char* realCwd = SDL_GetCurrentDirectory();
@@ -139,6 +139,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+    arena_free(&_state.frameArena);
+    arena_free(&_state.tickArena);
+    arena_free(&_state.permArena);
+    SDL_Quit();
     (void)appstate;
     (void)result;
 }

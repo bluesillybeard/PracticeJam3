@@ -122,7 +122,6 @@ static RenderLayer* getOrMakeRenderLayer(PracticeJam3RenderState* this, int want
         .count = 0,
         .depth = wantedDepth,
     };
-    // TODO: is it worth using realloc? Probably not.
     // Creating new layers should be seriously quite rare, so the slowness is probably fine
     RenderLayer* newLayers = SDL_malloc((this->numRenderLayers+1) * sizeof(RenderLayer));
     newLayers[layerIndex] = newLayer;
@@ -197,8 +196,7 @@ bool practiceJam3_render_frame(PracticeJam3State* state) {
     int realHeight;
     SDL_GetWindowSizeInPixels(this->window, &realWidth, &realHeight);
     // This is to (hopefully) avoid spamming useless resize calls
-    // Also, SDL does in fact trigger the resize even upon calling this function
-    // TODO: I assume this is always in pixels?
+    // Also, SDL does in fact trigger the resize event upon calling this function
     if(width != realWidth || height != realHeight) {
         SDL_SetWindowSize(this->window, width, height);
     }
@@ -255,7 +253,7 @@ SDL_Texture* practiceJam3_render_loadTexture(PracticeJam3State* state, char* ass
     stbi_uc* imageResult = stbi_load(file, &imageWidth, &imageHeight, &fileChannels, 4);
 
     if(!imageResult) {
-        SDL_Log("Could not load character0.png: %s", stbi_failure_reason());
+        SDL_Log("Could not load %s: %s", assetPath, stbi_failure_reason());
         SDL_Log("cwd: %s", SDL_GetCurrentDirectory());
         return false;
     }
@@ -272,7 +270,13 @@ SDL_Texture* practiceJam3_render_loadTexture(PracticeJam3State* state, char* ass
     // TODO: probably free the surface and the pixel data
     SDL_Surface* imageSurface = SDL_CreateSurfaceFrom(imageWidth, imageHeight, SDL_PIXELFORMAT_RGBA8888, imageResult, imageWidth*4);
 
-    return SDL_CreateTextureFromSurface(this->renderer, imageSurface);
+    SDL_Texture* tex = SDL_CreateTextureFromSurface(this->renderer, imageSurface);
+
+    SDL_DestroySurface(imageSurface);
+
+    stbi_image_free(imageResult);
+
+    return tex;
 }
 
 bool practiceJam3_render_sprite(PracticeJam3State* state, float x, float y, float w, float h, SDL_Texture* texture, float tintRed, float tintGreen, float tintBlue, float tintAlpha, int layer) {
