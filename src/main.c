@@ -90,8 +90,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         if(!practiceJam3_render_step(&_state)) {
             return SDL_APP_FAILURE;
         }
-
-    }    
+    }
 
     if(!practiceJam3_game_frame(&_state)) {
         return SDL_APP_FAILURE;

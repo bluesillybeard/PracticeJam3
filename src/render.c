@@ -31,6 +31,11 @@ EM_JS(int, document_get_height, (), {
 
 #endif
 
+// other extra functions
+static inline float rqlerp(float a, float b, float x) {
+    return a * x + b * (1-x);
+}
+
 bool practiceJam3_render_init(PracticeJam3State* state) {
     state->render = arena_alloc(&state->permArena, sizeof(PracticeJam3RenderState));
 
@@ -64,6 +69,7 @@ bool practiceJam3_render_init(PracticeJam3State* state) {
     }
 
     this->texture = SDL_CreateTextureFromSurface(this->renderer, emscript);
+    SDL_SetTextureScaleMode(this->texture, SDL_SCALEMODE_NEAREST);
     return true;
 }
 
@@ -92,37 +98,16 @@ bool practiceJam3_render_frame(PracticeJam3State* state) {
         SDL_SetWindowSize(this->window, width, height);
     }
     #endif
-    
-    SDL_FRect rect;
 
     SDL_SetRenderDrawColor(this->renderer, 33, 33, 33, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(this->renderer);
-
-    SDL_SetRenderDrawColor(this->renderer, 0, 0, 255, SDL_ALPHA_OPAQUE);  /* blue, full alpha */
-    rect.x = rect.y = 100;
-    rect.w = 440;
-    rect.h = 280;
-    SDL_RenderFillRect(this->renderer, &rect);
-
-    SDL_SetRenderDrawColor(this->renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);  /* red, full alpha */
-
-    SDL_SetRenderDrawColor(this->renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);  /* green, full alpha */
-    rect.x += 30;
-    rect.y += 30;
-    rect.w -= 60;
-    rect.h -= 60;
-    SDL_RenderRect(this->renderer, &rect);
-
-    SDL_SetRenderDrawColor(this->renderer, 255, 255, 0, SDL_ALPHA_OPAQUE);  /* yellow, full alpha */
-    SDL_RenderLine(this->renderer, 0, 0, 640, 480);
-    SDL_RenderLine(this->renderer, 0, 480, 640, 0);
 
     SDL_FRect textureSrc = {.x = 0, .y = 0, .w = 64, .h = 16};
     SDL_FRect textureDst = {.x = 0, .y = 0, .w = 256, .h = 64};
     SDL_RenderTexture(this->renderer, this->texture, &textureSrc, &textureDst);
 
     float sillyBoxRadius = 20;
-    float sillyBoxPos = state->gameState->boxPos * interpolator + state->gameState->lastBoxPos * (1 - interpolator);
+    float sillyBoxPos = rqlerp(state->gameState->boxPos, state->gameState->lastBoxPos, interpolator);
     SDL_FRect sillyBox = {.x = sillyBoxPos - sillyBoxRadius + 80, .y = 60, .w = sillyBoxRadius*2, .h = sillyBoxRadius*2};
     SDL_SetRenderDrawColor(this->renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
     SDL_RenderFillRect(this->renderer, &sillyBox);

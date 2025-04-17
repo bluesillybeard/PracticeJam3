@@ -16,7 +16,7 @@ bool practiceJam3_game_frame(PracticeJam3State* state) {
 
 bool practiceJam3_game_step(PracticeJam3State* state) {
     PracticeJam3GameState* this = state->gameState;
-    // one second
+    // 10 seconds
     int64_t period = 1000l*1000l*1000l * 10l;
     this->lastBoxPos = this->boxPos;
     this->boxPos = 50 * SDL_sinf(((float)(state->times.timeNsGame % period) / (float)period) * 2 * SDL_PI_F);
