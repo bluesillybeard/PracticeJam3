@@ -73,5 +73,7 @@ bool practiceJam3_game_step(PracticeJam3State* state) {
     if(this->leftControlState) {
         this->playerX -= playerSpeed * delta;
     }
+
+    practiceJam3_render_setCamera(state, this->playerX+0.5f, this->playerY+0.5f, 12);
     return true;
 }

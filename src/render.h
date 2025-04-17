@@ -36,6 +36,10 @@ struct _PracticeJam3RenderState {
     float cameraCenterXLast;
     float cameraCenterYLast;
     float cameraRadiusLast;
+    // Camera settings from the last setCamera()
+    float cameraRadiusSet;
+    float cameraCenterXSet;
+    float cameraCenterYSet;
     // list of render layers
     RenderLayer* layers;
     size_t numRenderLayers;
@@ -45,6 +49,8 @@ struct _PracticeJam3RenderState {
 bool practiceJam3_render_init(PracticeJam3State* state);
 
 bool practiceJam3_render_frame(PracticeJam3State* state);
+
+void practiceJam3_render_setCamera(PracticeJam3State* state, float centerX, float centerY, float radius);
 
 bool practiceJam3_render_step(PracticeJam3State* state);
 

@@ -20,9 +20,6 @@
 #define RENDER_PRIV
 #include "render.h"
 
-#define GAME_PRIV
-#include "game.h"
-
 #include "main.h"
 
 // Some extra functions we need if we're on emscripten for web build
@@ -230,13 +227,23 @@ bool practiceJam3_render_frame(PracticeJam3State* state) {
     return true;
 }
 
+void practiceJam3_render_setCamera(PracticeJam3State* state, float centerX, float centerY, float radius) {
+    PracticeJam3RenderState* this = state->render;
+    this->cameraCenterXSet = centerX;
+    this->cameraCenterYSet = centerY;
+    this->cameraRadiusSet = radius;
+}
+
 bool practiceJam3_render_step(PracticeJam3State* state) {
     PracticeJam3RenderState* this = state->render;
+    
     this->cameraCenterXLast = this->cameraCenterX;
     this->cameraCenterYLast = this->cameraCenterY;
     this->cameraRadiusLast = this->cameraRadius;
-    this->cameraCenterX = state->gameState->playerX + 0.5f;
-    this->cameraCenterY = state->gameState->playerY + 0.5f;
+
+    this->cameraCenterX = this->cameraCenterXSet;
+    this->cameraCenterY = this->cameraCenterYSet;
+    this->cameraRadius = this->cameraRadiusSet;
     return true;
 }
 
