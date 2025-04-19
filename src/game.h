@@ -5,8 +5,23 @@
 #include <stdbool.h>
 
 #ifdef GAME_PRIV
-
 #include "SDL3/SDL_render.h"
+#include "SDL3/SDL_rect.h"
+
+// This struct exists in case I want to add more types of colliders
+typedef struct _GameCollider {
+    SDL_FRect AABB;
+} GameCollider;
+
+typedef struct _GameScene {
+    char* backdrop;
+    SDL_FRect backdropDst;
+    float playerStartX;
+    float playerStartY;
+    GameCollider const* colliders;
+    size_t numColliders;
+} GameScene;
+
 struct _PracticeJam3GameState {
     float playerX;
     float playerY;
@@ -17,6 +32,8 @@ struct _PracticeJam3GameState {
     bool leftControlState;
     bool rightControlState;
     SDL_Texture* characterTexture;
+    SDL_Texture* scene1Texture;
+    bool showHitboxes;
 };
 #endif
 

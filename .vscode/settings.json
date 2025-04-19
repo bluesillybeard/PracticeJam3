@@ -3,10 +3,12 @@
     // I really suggest using clangd instead of the official c++ extension, it provides a much better experience.
     "C_Cpp.intelliSenseEngine": "disabled",
     "cSpell.words": [
+        "AABB",
         "BLENDMODE",
         "cglm",
         "emscripten",
         "glmc",
+        "lerpc",
         "mulv",
         "rqlerp",
         "SCALEMODE",

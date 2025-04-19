@@ -77,6 +77,7 @@ static void drawTextureQuad(PracticeJam3RenderState* this, mat4 transform, SDL_V
         0, 1, 2,
         1, 3, 2,
     };
+    SDL_SetRenderDrawBlendMode(this->renderer, SDL_BLENDMODE_BLEND);
     // Ew gross reuploading vertex data every frame...
     // It's fast enough, who cares.
     SDL_RenderGeometry(this->renderer, texture, vertices, 4, indices, 6);
@@ -236,7 +237,7 @@ void practiceJam3_render_setCamera(PracticeJam3State* state, float centerX, floa
 
 bool practiceJam3_render_step(PracticeJam3State* state) {
     PracticeJam3RenderState* this = state->render;
-    
+
     this->cameraCenterXLast = this->cameraCenterX;
     this->cameraCenterYLast = this->cameraCenterY;
     this->cameraRadiusLast = this->cameraRadius;
