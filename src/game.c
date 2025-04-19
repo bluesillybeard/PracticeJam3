@@ -199,6 +199,7 @@ bool practiceJam3_game_step(PracticeJam3State* state) {
 
     // avoid issues with precision and getting stuck by enacting a buffer
     float const collisionTimeBuffer = 1.0f / 512.0f;
+    
     // Check collision against level AABB
     float collisionTime;
     int collisionFace = gameCollide((GameCollider){.AABB={this->playerX, this->playerY, 1, 1}}, movex, movey, (GameCollider){.AABB=scene1.backdropDst}, 0, 0, &collisionTime);
@@ -224,7 +225,6 @@ bool practiceJam3_game_step(PracticeJam3State* state) {
         collisionTime -= collisionTimeBuffer;
         if(collisionTime < 0) collisionTime = 0;
         if(collisionFace){
-            SDL_Log("Collided on face %i\n", collisionFace);
             switch (collisionFace) {
                 case 1:
                     movey *= collisionTime; break;
