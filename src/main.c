@@ -1,7 +1,7 @@
 // This is the "root file" where everything happens
 // All subsystems are initialized here one way or another
 
-#include "arena.h"
+#include "ext/arena.h"
 #include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_log.h>
@@ -13,7 +13,6 @@
 
 #include "main.h"
 
-#define RENDER_PRIV
 #include "render.h"
 #include "game.h"
 // Implementations of symbols in main.h
@@ -63,6 +62,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_memcpy(virtualCwdAllocation, realCwd, indexOfLastFolderSeparator);
     virtualCwdAllocation[indexOfLastFolderSeparator] = 0;
     _state.virtualCwd = virtualCwdAllocation;
+    SDL_free(realCwd);
     #else
     _state.virtualCwd = "";
     #endif
@@ -80,11 +80,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
-    (void)appstate;
     if (event->type == SDL_EVENT_QUIT) {
-        // TODO: send events to subsystems instead
-        _state.render->closing = true;
+        _state.closing = true;
     }
+    (void)appstate;
+    practiceJam3_render_event(&_state, event);
     practiceJam3_game_event(&_state, event);
     return SDL_APP_CONTINUE;
 }
@@ -93,7 +93,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 {
     (void)appstate;
     // TODO: ask subsystems if they want to close the app
-    if(_state.render->closing) {
+    if(_state.closing) {
         return SDL_APP_SUCCESS;
     }
     
@@ -139,6 +139,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+    practiceJam3_render_quit(&_state);
     arena_free(&_state.frameArena);
     arena_free(&_state.tickArena);
     arena_free(&_state.permArena);

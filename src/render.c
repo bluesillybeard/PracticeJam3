@@ -9,16 +9,22 @@
 #include <SDL3/SDL_blendmode.h>
 #include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_stdinc.h>
+#include <stdlib.h>
 #include <time.h>
 
-#include "arena.h"
+#include "SDL3/SDL_iostream.h"
+#include "ext/arena.h"
+#include "ext/mini_utf8.h"
+#include "ext/stb_truetype.h"
 #include "cglm/call/affine.h"
 #include "cglm/call/mat4.h"
 #include "cglm/types.h"
-#include "stb_image.h"
+#include "ext/stb_rect_pack.h"
+#include "ext/stb_image.h"
+#include "ext/mini_utf8.h"
 
-#define RENDER_PRIV
 #include "render.h"
+#include "render_privates.h"
 
 #include "main.h"
 
@@ -133,6 +139,15 @@ static RenderLayer* getOrMakeRenderLayer(PracticeJam3RenderState* this, int want
     return &this->layers[layerIndex];
 }
 
+// Returns the 'real' path to an asset given its virtual path
+// The object is allocated on the tick arena, so it will be deleted at the end of the current tick.
+static char* getAssetFilePath(char* assetPath) {
+    size_t filePathSizeRequired = strlen(practiceJam3_staticState.virtualCwd) + 1 + strlen(assetPath) + 1;
+    char* file = arena_alloc(&practiceJam3_staticState.tickArena, filePathSizeRequired);
+    SDL_snprintf(file, filePathSizeRequired, "%s/%s", practiceJam3_staticState.virtualCwd, assetPath);
+    return file;
+}
+
 // Makes a copy of com
 void renderLayer_add(RenderLayer* layer, RenderCommand const* com) {
     if(!layer->cmds) {
@@ -153,6 +168,8 @@ bool practiceJam3_render_init(PracticeJam3State* state) {
     state->render = arena_alloc(&state->permArena, sizeof(PracticeJam3RenderState));
     PracticeJam3RenderState* this = state->render;
     *this = (PracticeJam3RenderState){ 0 };
+    Arena initArena = { 0 };
+
     this->cameraRadius = 12;
 
     int width = 640;
@@ -169,10 +186,99 @@ bool practiceJam3_render_init(PracticeJam3State* state) {
     height = document_get_height();
     #endif
 
-    if (!SDL_CreateWindowAndRenderer("PracticeJam3", width, height, windowFlags, &this->window, &this->renderer)) {
-        SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
+    SDL_CreateWindowAndRenderer("PracticeJam3", width, height, windowFlags, &this->window, &this->renderer);
+
+    // this->window = SDL_CreateWindow("PracticeJam3", width, height, windowFlags);
+    if(!this->window) {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not create window: %s\n", SDL_GetError());
         return false;
     }
+
+    int const numRenderDrivers = SDL_GetNumRenderDrivers();
+    for(int i=0; i<numRenderDrivers; ++i) {
+        SDL_Log("Render driver %i is \"%s\"\n", i, SDL_GetRenderDriver(i));
+    }
+
+    // this->renderer = SDL_CreateRenderer(this->window, NULL);
+    if(!this->renderer) {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to create renderer:%s\n", SDL_GetError());
+        return false;
+    }
+
+    SDL_Log("The chosen render driver is \"%s\"\n", SDL_GetRendererName(this->renderer));
+    // This is not clearly documented anywhere: I found out by randomly experimenting.
+    // Literally, I just randomly thought "what happens if I define an env variable called SDL_RENDER_DRIVER?"
+    // So this is to remind me so I don't forget.
+    SDL_Log("Note: you can set the env variable SDL_RENDER_DRIVER=[driver name] to select a specific one at runtime.\n");
+
+    char const* fontFilePath = getAssetFilePath("asset/WinkyRough-ExtraBold.ttf");
+    size_t fontFileDataSize;
+    char unsigned const* fontFileData = SDL_LoadFile(fontFilePath, &fontFileDataSize);
+    if(!fontFileData) {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to load font: %s\n", SDL_GetError());
+        return false;
+    }
+
+    if(!stbtt_InitFont(&this->fontInfo, fontFileData, 0)) {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "STBTT failed to initialize font\n");
+        return false;
+    }
+
+    // STBTT tells me to treat the fontinfo as opaque, but it's missing a function/macro to get this information.
+    // Actually I ended up never using it for anything, because STBTT doesn't even have a way to get the unicode codepoint of a glyph in the font.
+    // I plan on ditching stbtt anyway - but only after this game jam.
+    if(this->fontInfo.numGlyphs < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "There are %i glyphs in the font. What? It's not supposed to be negative!\n", this->fontInfo.numGlyphs);
+        return false;
+    }
+
+    stbtt_pack_context fontPacker;
+    this->fontAtlasWidth = 512;
+    this->fontAtlasHeight = 512;
+    // one byte per pixel (single alpha channel from 0 - 255)
+    unsigned char* fontAtlasPixels = arena_alloc(&initArena, (size_t)(this->fontAtlasWidth * this->fontAtlasHeight));
+    if(!stbtt_PackBegin(&fontPacker, fontAtlasPixels, (int)this->fontAtlasWidth, (int)this->fontAtlasHeight, 0, 0, 0)) {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to begin font atlas packing\n");
+        return false;
+    }
+    // idk just scan the first 512 codepoints or whatever
+    unsigned int const codepointsToSearch = 512;
+    this->fontCharData = arena_alloc(&state->permArena, codepointsToSearch*sizeof(stbtt_packedchar));
+    this->fontCharDataNum = codepointsToSearch;
+
+    stbtt_PackFontRange(&fontPacker, fontFileData, 0, 64, 0, codepointsToSearch, this->fontCharData);
+
+    stbtt_PackEnd(&fontPacker);
+
+    SDL_free((void*)fontFileData);
+
+    // SDL3 doesn't support value images (sad) even though OpenGL and Vulkan support it (mostly) fine
+    // So we have to convert it (big sad)
+    // This wastes *so much space* it's like *completely unacceptable*  ):<
+    unsigned char* fontAtlasPixelsRGBA = arena_alloc(&initArena, this->fontAtlasWidth * this->fontAtlasHeight * sizeof(uint32_t));
+
+    for(size_t i=0; i<this->fontAtlasWidth*this->fontAtlasHeight; ++i) {
+        fontAtlasPixelsRGBA[4*i] = 0xFF;
+        fontAtlasPixelsRGBA[4*i+1] = 0xFF;
+        fontAtlasPixelsRGBA[4*i+2] = 0xFF;
+        fontAtlasPixelsRGBA[4*i+3] = fontAtlasPixels[i];
+    }
+
+    // use RGB8888 because that will account for the endianness of what we did above
+    SDL_Surface* fontAtlasSurface = SDL_CreateSurfaceFrom((int)this->fontAtlasWidth, (int)this->fontAtlasHeight, SDL_PIXELFORMAT_RGBA32, fontAtlasPixelsRGBA, (int)(this->fontAtlasWidth*sizeof(uint32_t)));
+    if(!fontAtlasSurface) {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to create font surface: %s\n", SDL_GetError());
+        return false;
+    }
+
+    this->fontAtlasTexture = SDL_CreateTextureFromSurface(this->renderer, fontAtlasSurface);
+    if(!this->fontAtlasTexture) {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to create font texture: %s\n", SDL_GetError());
+        return false;
+    }
+
+    SDL_DestroySurface(fontAtlasSurface);
+    arena_free(&initArena);
     return true;
 }
 
@@ -210,13 +316,86 @@ bool practiceJam3_render_frame(PracticeJam3State* state) {
         RenderLayer* layerObj = &this->layers[layer];
         for(size_t command=0; command<layerObj->count; command++) {
             RenderCommand* co = &layerObj->cmds[command];
-            SDL_Vertex vertices[4] = {
-                (SDL_Vertex){.position = {co->x      , co->y      }, .color = {co->tintRed, co->tintGreen, co->tintBlue, co->tintAlpha}, .tex_coord = {0, 0}},
-                (SDL_Vertex){.position = {co->x+co->w, co->y      }, .color = {co->tintRed, co->tintGreen, co->tintBlue, co->tintAlpha}, .tex_coord = {1, 0}},
-                (SDL_Vertex){.position = {co->x      , co->y+co->h}, .color = {co->tintRed, co->tintGreen, co->tintBlue, co->tintAlpha}, .tex_coord = {0, 1}},
-                (SDL_Vertex){.position = {co->x+co->w, co->y+co->h}, .color = {co->tintRed, co->tintGreen, co->tintBlue, co->tintAlpha}, .tex_coord = {1, 1}},
-            };
-            drawTextureQuad(this, worldToCameraSpace, vertices, co->texture);
+            switch(co->commandType){
+                case RenderCommandType_sprite:{
+                    SDL_Vertex vertices[4] = {
+                        (SDL_Vertex){
+                            .position = {co->data.sprite.x, co->data.sprite.y},
+                            .color = {co->data.sprite.tintRed, co->data.sprite.tintGreen, co->data.sprite.tintBlue, co->data.sprite.tintAlpha},
+                            .tex_coord = {0, 0}
+                        },
+                        (SDL_Vertex){
+                            .position = {co->data.sprite.x+co->data.sprite.w, co->data.sprite.y},
+                            .color = {co->data.sprite.tintRed, co->data.sprite.tintGreen, co->data.sprite.tintBlue, co->data.sprite.tintAlpha},
+                            .tex_coord = {1, 0}
+                        },
+                        (SDL_Vertex){
+                            .position = {co->data.sprite.x, co->data.sprite.y+co->data.sprite.h},
+                            .color = {co->data.sprite.tintRed, co->data.sprite.tintGreen, co->data.sprite.tintBlue, co->data.sprite.tintAlpha},
+                            .tex_coord = {0, 1}
+                        },
+                        (SDL_Vertex){
+                            .position = {co->data.sprite.x+co->data.sprite.w, co->data.sprite.y+co->data.sprite.h},
+                            .color = {co->data.sprite.tintRed, co->data.sprite.tintGreen, co->data.sprite.tintBlue, co->data.sprite.tintAlpha},
+                            .tex_coord = {1, 1}
+                        },
+                    };
+                    drawTextureQuad(this, worldToCameraSpace, vertices, co->data.sprite.texture);
+                    break;
+                }
+                case RenderCommandType_text:{
+                    char* txt = co->data.text.text;
+                    size_t len = SDL_strlen(txt);
+                    char* txtDecode = txt;
+                    // float xp = 0;
+                    // TODO: upon reaching a newline codepoint, move down and go back
+                    while((uintptr_t)(txt - txtDecode) < len) {
+                        // Implicitly casting a non-const double pointer to a const one is not valid? Weird.
+                        int codepoint = mini_utf8_decode((const char**)&txtDecode);
+                        // TODO: make sure codepoint is in the range it's allowed to be
+                        stbtt_packedchar charData = this->fontCharData[(size_t)codepoint];
+                        float tx0 = charData.x0/(float)this->fontAtlasWidth;
+                        float ty0 = charData.y0/(float)this->fontAtlasHeight;
+                        float tx1 = charData.x1/(float)this->fontAtlasWidth;
+                        float ty1 = charData.y1/(float)this->fontAtlasHeight;
+                        // TODO: this does not work right, come back to it!!
+                        float px0 = (charData.x0)/(float)(charData.x1-charData.x0);
+                        float px1 = (charData.x1)/(float)(charData.x1-charData.x0);
+                        float py0 = (charData.y0)/(float)(charData.y1-charData.y0);
+                        float py1 = (charData.y1)/(float)(charData.y1-charData.y0);
+                        // xp += charData.xadvance;
+                        SDL_Vertex vertices[4] = {
+                            (SDL_Vertex){
+                                .position = {px0, py0},
+                                .color = {co->data.text.tintRed, co->data.text.tintGreen, co->data.text.tintBlue, co->data.text.tintAlpha},
+                                .tex_coord = {tx0, ty0}
+                            },
+                            (SDL_Vertex){
+                                .position = {px1, py0},
+                                .color = {co->data.text.tintRed, co->data.text.tintGreen, co->data.text.tintBlue, co->data.text.tintAlpha},
+                                .tex_coord = {tx1, ty0}
+                            },
+                            (SDL_Vertex){
+                                .position = {px0, py1},
+                                .color = {co->data.text.tintRed, co->data.text.tintGreen, co->data.text.tintBlue, co->data.text.tintAlpha},
+                                .tex_coord = {tx0, ty1}
+                            },
+                            (SDL_Vertex){
+                                .position = {px1, py1},
+                                .color = {co->data.text.tintRed, co->data.text.tintGreen, co->data.text.tintBlue, co->data.text.tintAlpha},
+                                .tex_coord = {tx1, ty1}
+                            },
+                        };
+                        drawTextureQuad(this, worldToCameraSpace, vertices, this->fontAtlasTexture);
+                    }
+                    break;
+                }
+                default: {
+                    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Invalid render command type: likely a memory corruption!");
+                    return false;
+                }
+            }
+
         }
         // reset the layer
         SDL_memset(layerObj->cmds, 0, layerObj->count * sizeof(RenderCommand));
@@ -249,15 +428,13 @@ bool practiceJam3_render_step(PracticeJam3State* state) {
 }
 
 SDL_Texture* practiceJam3_render_loadTexture(PracticeJam3State* state, char* assetPath) {
+    // TODO: reuse textures with the same name
     PracticeJam3RenderState* this = state->render;
     int imageWidth;
     int imageHeight;
     int fileChannels;
 
-    size_t filePathSizeRequired = strlen(practiceJam3_staticState.virtualCwd) + 1 + strlen(assetPath) + 1;
-    // allocate temporarily
-    char* file = arena_alloc(&practiceJam3_staticState.tickArena, filePathSizeRequired);
-    SDL_snprintf(file, filePathSizeRequired, "%s/%s", practiceJam3_staticState.virtualCwd, assetPath);
+    char* file = getAssetFilePath(assetPath);
     stbi_uc* imageResult = stbi_load(file, &imageWidth, &imageHeight, &fileChannels, 4);
 
     if(!imageResult) {
@@ -269,14 +446,14 @@ SDL_Texture* practiceJam3_render_loadTexture(PracticeJam3State* state, char* ass
     // SDL3 is big dumb and treats 'rgba' as big endian RGBA, but what we have is the actual bytes of R, G, B, and A in order.
     // Something about accounting for endianness or whatever - for now, just swap every single one of them around in-place.
     // TODO: is this correct on actual big-endian systems? x86 is little endian, but big endian systems do exist I think.
-    uint32_t* imageResultInts = (uint32_t*)imageResult;
-    for(size_t i=0; i<(unsigned int)imageWidth*(unsigned int)imageHeight; ++i) {
-        uint32_t vo = imageResultInts[i];
-        imageResultInts[i] = ((vo & 0xFF000000) >> 24) | ((vo & 0x00FF0000) >> 8) | ((vo & 0x0000FF00) << 8) | ((vo & 0x000000FF) << 24);
-    }
+    // uint32_t* imageResultInts = (uint32_t*)imageResult;
+    // for(size_t i=0; i<(unsigned int)imageWidth*(unsigned int)imageHeight; ++i) {
+    //     uint32_t vo = imageResultInts[i];
+    //     imageResultInts[i] = ((vo & 0xFF000000) >> 24) | ((vo & 0x00FF0000) >> 8) | ((vo & 0x0000FF00) << 8) | ((vo & 0x000000FF) << 24);
+    // }
 
     // TODO: probably free the surface and the pixel data
-    SDL_Surface* imageSurface = SDL_CreateSurfaceFrom(imageWidth, imageHeight, SDL_PIXELFORMAT_RGBA8888, imageResult, imageWidth*4);
+    SDL_Surface* imageSurface = SDL_CreateSurfaceFrom(imageWidth, imageHeight, SDL_PIXELFORMAT_RGBA32, imageResult, imageWidth*4);
 
     SDL_Texture* tex = SDL_CreateTextureFromSurface(this->renderer, imageSurface);
 
@@ -290,15 +467,39 @@ SDL_Texture* practiceJam3_render_loadTexture(PracticeJam3State* state, char* ass
 bool practiceJam3_render_sprite(PracticeJam3State* state, float x, float y, float w, float h, SDL_Texture* texture, float tintRed, float tintGreen, float tintBlue, float tintAlpha, int layer) {
     PracticeJam3RenderState* this = state->render;
     RenderCommand com = {
-        .x = x,
-        .y = y,
-        .w = w,
-        .h = h,
-        .texture = texture,
-        .tintRed = tintRed,
-        .tintGreen = tintGreen,
-        .tintBlue = tintBlue,
-        .tintAlpha = tintAlpha
+        .commandType = RenderCommandType_sprite,
+        .data = {.sprite = {
+            .x = x,
+            .y = y,
+            .w = w,
+            .h = h,
+            .texture = texture,
+            .tintRed = tintRed,
+            .tintGreen = tintGreen,
+            .tintBlue = tintBlue,
+            .tintAlpha = tintAlpha
+        }},
+    };
+    RenderLayer* renderL = getOrMakeRenderLayer(this, layer);
+    renderLayer_add(renderL, &com);
+    return true;
+}
+
+bool practiceJam3_render_text(PracticeJam3State* state, float x, float y, float size, float tintRed, float tintGreen, float tintBlue, float tintAlpha, char* text, int layer) {
+    PracticeJam3RenderState* this = state->render;
+    // TODO: copy text into frame arena or something
+    RenderCommand com = {
+        .commandType = RenderCommandType_text,
+        .data = {.text = {
+            .x = x,
+            .y = y,
+            .tintRed = tintRed,
+            .tintGreen = tintGreen,
+            .tintBlue = tintBlue,
+            .tintAlpha = tintAlpha,
+            .text = text,
+            .size = size
+        }},
     };
     RenderLayer* renderL = getOrMakeRenderLayer(this, layer);
     renderLayer_add(renderL, &com);
@@ -307,4 +508,19 @@ bool practiceJam3_render_sprite(PracticeJam3State* state, float x, float y, floa
 
 float practiceJam3_render_getInterpolator(PracticeJam3State* state) {
     return (float)(state->times.timeNsFrame - state->times.timeNsStep + nsPerStep) / (float)nsPerStep;
+}
+
+bool practiceJam3_render_event(PracticeJam3State* state, SDL_Event const* event) {
+    (void)state;
+    (void)event;
+    return true;
+}
+
+void practiceJam3_render_quit(PracticeJam3State* state) {
+    PracticeJam3RenderState* this = state->render;
+    for(size_t layerI = 0; layerI < this->numRenderLayers; ++layerI) {
+        RenderLayer layer = this->layers[layerI];
+        SDL_free(layer.cmds);
+    }
+    SDL_free(this->layers);
 }

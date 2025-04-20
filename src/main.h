@@ -2,7 +2,8 @@
 // PracticeJam3's "global" header file
 // I suspect nearly every PracticeJam3 source file will include this in one way or another
 
-#include "arena.h"
+#include "ext/arena.h"
+#include <stdbool.h>
 
 // Global compile-time settings
 static const int64_t nsPerStep = (1000 * 1000 * 1000) / 100; // 100 hz as a delay in nano seconds
@@ -39,6 +40,7 @@ typedef struct {
     Arena frameArena;
     /// @brief An arena that is cleared at the end of each game tick
     Arena tickArena;
+    bool closing;
     // Subsystems
     PracticeJam3RenderState* render;
     PracticeJam3GameState* gameState;

@@ -1,16 +1,15 @@
 #pragma once
 
+#include "game_privates.h"
 // This file exists because there are too many scenes to just shove into the main.c file directly
 #include "SDL3/SDL_stdinc.h"
-#define GAME_PRIV
-#include "game.h"
 
 #define AABB(x0, y0, x1, y1) (GameCollider) {.AABB = { SDL_min(x0, x1), SDL_min(y0, y1), SDL_max(x0, x1)-SDL_min(x0, x1), SDL_max(y0, y1)-SDL_min(y0, y1) }}
 
 static const GameCollider scene1Colliders[] = {
     AABB(-1.4f, -2.3f, 12.0f, -1.4f), // top wall
     AABB(-1.4f, -2.3f, -0.8f, 6.5f), // left wall
-    AABB(-1.4f, 7.3f, 12.0f, 6.5f), // bottom wall
+    // AABB(-1.4f, 7.3f, 12.0f, 6.5f), // bottom wall
     AABB(12.8f, 7.3f, 12.0f, -2.3f), // right wall
     AABB(0.6f, -0.8f, 1.7f, 0.9f), // top-left desk
     AABB(4.8f, -0.8f, 5.9f, 0.9f), // top-right desk
