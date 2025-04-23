@@ -131,7 +131,7 @@ bool practiceJam3_game_frame(PracticeJam3State* state) {
     if(!practiceJam3_render_sprite(state, playerX, playerY, 1, 1, this->characterTexture, 1, 1, 1, 1, 0)) {
         return false;
     }
-    if(!practiceJam3_render_text(state, 10, 10, 3, 1, 1, 1, 1, "A", 10)){
+    if(!practiceJam3_render_text(state, 0, 0, 1, 1, 0, 0, 1, "Apples are red", 10)){
         return false;
     }
 

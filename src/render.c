@@ -344,26 +344,41 @@ bool practiceJam3_render_frame(PracticeJam3State* state) {
                     break;
                 }
                 case RenderCommandType_text:{
-                    char* txt = co->data.text.text;
+                    char const* txt = co->data.text.text;
                     size_t len = SDL_strlen(txt);
-                    char* txtDecode = txt;
-                    // float xp = 0;
+                    char const* txtDecode = txt;
+                    float xp = 0;
+                    float scale = stbtt_ScaleForPixelHeight(&this->fontInfo, 1);
+                    int ascent, descent, lineGap;
+                    stbtt_GetFontVMetrics(&this->fontInfo, &ascent, &descent, &lineGap);
+                    float ascentF = (float)ascent * scale;
+                    // float descentF = (float)descent * scale;
                     // TODO: upon reaching a newline codepoint, move down and go back
-                    while((uintptr_t)(txt - txtDecode) < len) {
+                    while((uintptr_t)(txtDecode - txt) < len) {
                         // Implicitly casting a non-const double pointer to a const one is not valid? Weird.
-                        int codepoint = mini_utf8_decode((const char**)&txtDecode);
+                        int codepoint = mini_utf8_decode(&txtDecode);
                         // TODO: make sure codepoint is in the range it's allowed to be
-                        stbtt_packedchar charData = this->fontCharData[(size_t)codepoint];
-                        float tx0 = charData.x0/(float)this->fontAtlasWidth;
-                        float ty0 = charData.y0/(float)this->fontAtlasHeight;
-                        float tx1 = charData.x1/(float)this->fontAtlasWidth;
-                        float ty1 = charData.y1/(float)this->fontAtlasHeight;
-                        // TODO: this does not work right, come back to it!!
-                        float px0 = (charData.x0)/(float)(charData.x1-charData.x0);
-                        float px1 = (charData.x1)/(float)(charData.x1-charData.x0);
-                        float py0 = (charData.y0)/(float)(charData.y1-charData.y0);
-                        float py1 = (charData.y1)/(float)(charData.y1-charData.y0);
-                        // xp += charData.xadvance;
+                        int glyph = stbtt_FindGlyphIndex(&this->fontInfo, codepoint);
+                        int advanceW;
+                        int leftBearing;
+                        stbtt_GetGlyphHMetrics(&this->fontInfo, glyph, &advanceW, &leftBearing);
+                        int ix0, iy0, ix1, iy1;
+                        if(!stbtt_GetGlyphBox(&this->fontInfo, glyph, &ix0, &iy0, &ix1, &iy1)) {
+                            // It's probably like a space character or something
+                            xp += (float)advanceW*scale;
+                            continue;
+                        }
+                        float yp = ascentF + (float)iy0*scale;
+                        stbtt_packedchar* charData = this->fontCharData+codepoint;
+                        float tx0 = charData->x0/(float)this->fontAtlasWidth;
+                        float ty0 = charData->y0/(float)this->fontAtlasHeight;
+                        float tx1 = charData->x1/(float)this->fontAtlasWidth;
+                        float ty1 = charData->y1/(float)this->fontAtlasHeight;
+                        float px0 = xp+co->data.text.x;
+                        float px1 = xp+co->data.text.x + (float)(ix1-ix0)*scale;
+                        float py0 = yp+co->data.text.y;
+                        float py1 = yp+co->data.text.y + (float)(iy1-iy0)*scale;
+                        xp += (float)advanceW*scale;
                         SDL_Vertex vertices[4] = {
                             (SDL_Vertex){
                                 .position = {px0, py0},
