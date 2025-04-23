@@ -233,8 +233,8 @@ bool practiceJam3_render_init(PracticeJam3State* state) {
     }
 
     stbtt_pack_context fontPacker;
-    this->fontAtlasWidth = 512;
-    this->fontAtlasHeight = 512;
+    this->fontAtlasWidth = 1024;
+    this->fontAtlasHeight = 1024;
     // one byte per pixel (single alpha channel from 0 - 255)
     unsigned char* fontAtlasPixels = arena_alloc(&initArena, (size_t)(this->fontAtlasWidth * this->fontAtlasHeight));
     if(!stbtt_PackBegin(&fontPacker, fontAtlasPixels, (int)this->fontAtlasWidth, (int)this->fontAtlasHeight, 0, 0, 0)) {
@@ -351,7 +351,7 @@ bool practiceJam3_render_frame(PracticeJam3State* state) {
                     float scale = stbtt_ScaleForPixelHeight(&this->fontInfo, 1);
                     int ascent, descent, lineGap;
                     stbtt_GetFontVMetrics(&this->fontInfo, &ascent, &descent, &lineGap);
-                    float ascentF = (float)ascent * scale;
+                    // float ascentF = (float)ascent * scale;
                     // float descentF = (float)descent * scale;
                     // TODO: upon reaching a newline codepoint, move down and go back
                     while((uintptr_t)(txtDecode - txt) < len) {
@@ -368,7 +368,7 @@ bool practiceJam3_render_frame(PracticeJam3State* state) {
                             xp += (float)advanceW*scale;
                             continue;
                         }
-                        float yp = ascentF + (float)iy0*scale;
+                        float yp = (float)-iy1*scale;
                         stbtt_packedchar* charData = this->fontCharData+codepoint;
                         float tx0 = charData->x0/(float)this->fontAtlasWidth;
                         float ty0 = charData->y0/(float)this->fontAtlasHeight;

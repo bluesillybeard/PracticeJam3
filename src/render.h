@@ -16,6 +16,8 @@ SDL_Texture* practiceJam3_render_loadTexture(PracticeJam3State* state, char* ass
 bool practiceJam3_render_sprite(PracticeJam3State* state, float x, float y, float w, float h, SDL_Texture* texture, float tintRed, float tintGreen, float tintBlue, float tintAlpha, int layer);
 
 // Super basic text rendering function
+// X and Y are where the baseline goes, meaning the font itself may be rendered to the left or below (x, y)
+// See practiceJap3_measure_text for how to measure the size and offset of a text string
 bool practiceJam3_render_text(PracticeJam3State* state, float x, float y, float size, float tintRed, float tintGreen, float tintBlue, float tintAlpha, char* text, int layer);
 
 // Value used to interpolate the current state and the last state
