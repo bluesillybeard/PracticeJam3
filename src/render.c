@@ -246,11 +246,14 @@ bool practiceJam3_render_init(PracticeJam3State* state) {
     this->fontCharData = arena_alloc(&state->permArena, codepointsToSearch*sizeof(stbtt_packedchar));
     this->fontCharDataNum = codepointsToSearch;
 
-    stbtt_PackFontRange(&fontPacker, fontFileData, 0, 64, 0, codepointsToSearch, this->fontCharData);
+    if(!stbtt_PackFontRange(&fontPacker, fontFileData, 0, 64, 0, codepointsToSearch, this->fontCharData)) {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to pack font atlas\n");
+    }
 
     stbtt_PackEnd(&fontPacker);
 
-    SDL_free((void*)fontFileData);
+    // idk why, but this breaks emscripten build for some reason
+    // SDL_free((void*)fontFileData);
 
     // SDL3 doesn't support value images (sad) even though OpenGL and Vulkan support it (mostly) fine
     // So we have to convert it (big sad)
@@ -457,15 +460,6 @@ SDL_Texture* practiceJam3_render_loadTexture(PracticeJam3State* state, char* ass
         SDL_Log("cwd: %s", SDL_GetCurrentDirectory());
         return false;
     }
-
-    // SDL3 is big dumb and treats 'rgba' as big endian RGBA, but what we have is the actual bytes of R, G, B, and A in order.
-    // Something about accounting for endianness or whatever - for now, just swap every single one of them around in-place.
-    // TODO: is this correct on actual big-endian systems? x86 is little endian, but big endian systems do exist I think.
-    // uint32_t* imageResultInts = (uint32_t*)imageResult;
-    // for(size_t i=0; i<(unsigned int)imageWidth*(unsigned int)imageHeight; ++i) {
-    //     uint32_t vo = imageResultInts[i];
-    //     imageResultInts[i] = ((vo & 0xFF000000) >> 24) | ((vo & 0x00FF0000) >> 8) | ((vo & 0x0000FF00) << 8) | ((vo & 0x000000FF) << 24);
-    // }
 
     // TODO: probably free the surface and the pixel data
     SDL_Surface* imageSurface = SDL_CreateSurfaceFrom(imageWidth, imageHeight, SDL_PIXELFORMAT_RGBA32, imageResult, imageWidth*4);

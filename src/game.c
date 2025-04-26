@@ -3,7 +3,6 @@
 #include "cglm/util.h"
 #include "main.h"
 #include "render.h"
-#include <pulse/context.h>
 #include <unistd.h>
 #include "game.h"
 #include <stdbool.h>
